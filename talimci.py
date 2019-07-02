@@ -54,13 +54,11 @@ class CustomCompletionProvider(GObject.GObject, GtkSource.CompletionProvider):
 
 		if end_iter:
 			mps_list ={
-				"[paket]":["tanim    =","paketci =","grup       =","url           ="],
-				"[kaynak]":["gz            =","xz            =","dosya    =","bz2         =","github  =","1              =","2              =","3              ="],
-				"[sha256]":["1              =","2              =","3              =","4              =","5              =","6              ="],
-				"[derle]":["betik     =","dosya    =","yama    =","tip          ="],
-				"[pakur]":["tip          =","dosya    =","betik     =","strip     ="]
-
-			}
+				"[paket]":["tanim\t\t=","paketci\t\t=","grup\t\t\t=","url\t\t\t\t="],
+				"[kaynak]":["gz\t\t\t\t=","xz\t\t\t\t=","dosya\t\t\t=","bz2\t\t\t\t=","github\t\t=","1\t\t\t\t\t=","2\t\t\t\t\t=","3\t\t\t\t\t="],
+				"[sha256]":["1\t\t\t\t\t=","2\t\t\t\t\t=","3\t\t\t\t\t=","4\t\t\t\t\t=","5\t\t\t\t\t=","6\t\t\t\t\t="],
+				"[derle]":["betik\t\t\t=","dosya\t\t\t=","yama\t\t\t=","tip\t\t\t\t=","ekconf\t\t="],
+				"[pakur]":["tip\t\t\t\t=","dosya\t\t\t=","betik\t\t\t=","strip\t\t\t="]}
 
 
 			buf = end_iter.get_buffer()
@@ -113,6 +111,10 @@ class Talimci(Gtk.Window):
 		ana_kutu.pack_start(toolbar, expand = False, fill = False, padding = 5)
 		#toolbar.set_style(Gtk.TOOLBAR_ICONS)
 
+		self.talimat_dosya_yolu = ""
+		self.talimat_degistimi = False
+
+
 		#TOOL BAR GÖRÜNÜM OLUŞTURULUYOR
 		self.d_ac = Gtk.ToolButton(Gtk.STOCK_OPEN)
 		self.d_ac.set_label("Talimat aç")
@@ -123,7 +125,6 @@ class Talimci(Gtk.Window):
 
 		self.d_kaydet = Gtk.ToolButton(Gtk.STOCK_SAVE)
 		self.d_kaydet.set_label("Talimatı kaydet")
-		self.d_kaydet.set_sensitive(False)
 		toolbar.insert(self.d_kaydet, 1)
 		self.d_kaydet.connect("clicked",self.d_kaydet_basildi)
 		self.d_kaydet.set_property("has-tooltip", True)
@@ -154,7 +155,6 @@ class Talimci(Gtk.Window):
 		#Widgetlerin alanı
 		self.talimat_yolu = Gtk.Entry()
 		self.talimat_yolu.connect("activate", self.talimatname_yolu_basildi)
-		#self.talimat_yolu.set_editable(False)
 		sol_kutu.pack_start(self.talimat_yolu, expand = False, fill = False, padding = 5)
 
 		self.kategori_combo = Gtk.ComboBoxText()
@@ -190,7 +190,7 @@ class Talimci(Gtk.Window):
 		self.gsv = GtkSource.View()
 		self.gsv.set_show_line_numbers(1)
 		self.gsv.set_indent_on_tab(1)
-		self.gsv.set_tab_width(8)
+		self.gsv.set_tab_width(4)
 		self.gsv.set_show_line_marks(1)
 		scroll.add(self.gsv)
 		sag_kutu.pack_start(scroll, expand = True, fill = True, padding = 5)
@@ -213,7 +213,7 @@ class Talimci(Gtk.Window):
 		return True
 
 	def talimatname_yolu_basildi(self,basilan=""):
-		yazilan = self.dosya_yolu.get_text()
+		yazilan = self.talimat_dosya_yolu
 		self.talimat_yolu_kontrol(yazilan)
 
 
@@ -230,7 +230,7 @@ class Talimci(Gtk.Window):
 	def tus_basildi_fonksiyon(self, widget, event):
 		ctrl = (event.state & Gdk.ModifierType.CONTROL_MASK)
 		if ctrl and event.keyval == Gdk.KEY_s:
-			if self.d_kaydet.get_sensitive():
+			if self.talimat_degistimi:
 				self.d_kaydet_basildi()
 
 	def talimat_arandi(self, basilan):
@@ -296,8 +296,8 @@ class Talimci(Gtk.Window):
 				self.talimatlar[kategori].append(dizin.split("talimatname/")[1])
 
 	def yazi_degisti(self,buffer):
-		if self.dosya_yolu.get_text() != "":
-			self.d_kaydet.set_sensitive(True)
+		if self.talimat_dosya_yolu != "":
+			self.talimat_degistimi = True
 
 	def combo_degisti(self,degisen):
 		self.talimat_ara.set_text("")
@@ -364,7 +364,7 @@ class Talimci(Gtk.Window):
 			dialog.destroy()
 
 	def dosya_ac(self,dosya_yolu):
-		if self.d_kaydet.get_sensitive():
+		if self.talimat_degistimi:
 			soru = SoruDialog("Dikkat",self)
 			soru.set_text("Dosya değiştirildi ve kaydedilmedi.\nDevam etmeniz halinde çalışmalarınız silinecek.\nDevam Etmek İstiyor Musunuz?")
 			response = soru.run()
@@ -375,16 +375,39 @@ class Talimci(Gtk.Window):
 				soru.destroy()
 		try:
 			with open(dosya_yolu) as dosya:
-				okunan = dosya.read()
+				okunan = self.okunan_duzenle(dosya.read())
 				self.textbuff.set_text(okunan)
+				self.talimat_dosya_yolu = dosya_yolu
 				self.dosya_yolu.set_text(dosya_yolu)
-				self.d_kaydet.set_sensitive(False)
+				self.talimat_degistimi = False
 		except IOError as hata:
 			self.bilgi_diyalogu("Hata","Dosya okunamadı!",Gtk.MessageType.WARNING)
 
+	def okunan_duzenle(self,okunan):
+		liste = {"tanim":"tanim\t\t=","paketci":"paketci\t\t=","grup":"grup\t\t\t=","url":"url\t\t\t\t=",#paket
+				"gz":"gz\t\t\t\t=","xz":"xz\t\t\t\t=","dosya":"dosya\t\t\t=","bz2":"bz2\t\t\t\t=","github":"github\t\t=",#kaynak
+				"1":"1\t\t\t\t\t=","2":"2\t\t\t\t\t=","3":"3\t\t\t\t\t=","4":"4\t\t\t\t\t=","5":"5\t\t\t\t\t=","6":"6\t\t\t\t\t=",#rakamlar sha256
+				"betik":"betik\t\t\t=","yama":"yama\t\t\t=","tip":"tip\t\t\t\t=","ekconf":"ekconf\t\t=","strip":"strip\t\t\t="}
+		anahtarlar = list(liste.keys())
+		okunan = okunan.split("\n")
+		duzenli = ""
+		for satir in okunan:
+			if "=" in satir:
+				satir = satir.split("=")
+				once = satir[0].strip()
+				if once in anahtarlar:
+					once = liste[once]
+				satir = once + satir[1]
+			duzenli += satir + "\n"
+		return duzenli
+
+
 
 	def d_kaydet_basildi(self,basilan=""):
-		self.dosya_kaydet(self.dosya_yolu.get_text())
+		if self.talimat_degistimi:
+			self.dosya_kaydet(self.talimat_dosya_yolu)
+		else:
+			self.d_farkli_kaydet_basildi()
 
 	def d_farkli_kaydet_basildi(self,basilan=""):
 		dialog = Gtk.FileChooserDialog("Lütfen Dosya Kaydı İçin Bir Dizin Seçiniz", self,
@@ -423,7 +446,7 @@ class Talimci(Gtk.Window):
 			f = open(dosya_yolu,"w")
 			f.write(yazi)
 			f.close()
-			self.d_kaydet.set_sensitive(False)
+			self.talimat_degistimi = False
 		except IOError as hata:
 			self.bilgi_diyalogu("Hata","Dosya yazılamadı!",Gtk.MessageType.WARNING)
 
