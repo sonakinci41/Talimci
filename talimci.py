@@ -118,23 +118,31 @@ class Talimci(Gtk.Window):
 		self.d_ac.set_label("Talimat aç")
 		toolbar.insert(self.d_ac, 0)
 		self.d_ac.connect("clicked",self.d_ac_basildi)
+		self.d_ac.set_property("has-tooltip", True)
+		self.d_ac.connect("query-tooltip", self.d_bilgi,"Talimat Aç")
 
 		self.d_kaydet = Gtk.ToolButton(Gtk.STOCK_SAVE)
 		self.d_kaydet.set_label("Talimatı kaydet")
 		self.d_kaydet.set_sensitive(False)
 		toolbar.insert(self.d_kaydet, 1)
 		self.d_kaydet.connect("clicked",self.d_kaydet_basildi)
-		self.d_kaydet.set_label_widget(Gtk.Label("DENEME"))
+		self.d_kaydet.set_property("has-tooltip", True)
+		self.d_kaydet.connect("query-tooltip", self.d_bilgi,"Talimat Kaydet")
+
 
 		self.d_farkli_kaydet = Gtk.ToolButton(Gtk.STOCK_SAVE_AS)
 		self.d_farkli_kaydet.set_label("Talimatı farklı kaydet")
 		toolbar.insert(self.d_farkli_kaydet, 2)
 		self.d_farkli_kaydet.connect("clicked",self.d_farkli_kaydet_basildi)
+		self.d_farkli_kaydet.set_property("has-tooltip", True)
+		self.d_farkli_kaydet.connect("query-tooltip", self.d_bilgi,"Talimat Farklı Kaydet")
 
 		self.talimat_yolu_degis = Gtk.ToolButton(Gtk.STOCK_FILE)
 		self.talimat_yolu_degis.set_label("Talimat liste yolunu değiştir")
 		toolbar.insert(self.talimat_yolu_degis, 3)
 		self.talimat_yolu_degis.connect("clicked",self.talimat_yolu_degis_basildi)
+		self.talimat_yolu_degis.set_property("has-tooltip", True)
+		self.talimat_yolu_degis.connect("query-tooltip", self.d_bilgi,"Talimat Dizini Aç")
 
 		iki_boluk_kutu = Gtk.HPaned()
 		sol_kutu = Gtk.VBox()
@@ -145,15 +153,9 @@ class Talimci(Gtk.Window):
 
 		#Widgetlerin alanı
 		self.talimat_yolu = Gtk.Entry()
-		self.talimat_yolu.set_editable(False)
+		self.talimat_yolu.connect("activate", self.talimatname_yolu_basildi)
+		#self.talimat_yolu.set_editable(False)
 		sol_kutu.pack_start(self.talimat_yolu, expand = False, fill = False, padding = 5)
-
-		#Bunu comboya alacağız
-		#self.talimat_yolu_degis = Gtk.Button()
-		#icon = Gio.ThemedIcon(name="document-open")
-		#image = Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON)
-		#self.talimat_yolu_degis.add(image)
-		#sol_kutu.pack_start(self.talimat_yolu_degis, expand = False, fill = False, padding = 5)
 
 		self.kategori_combo = Gtk.ComboBoxText()
 		self.kategori_combo.connect("changed", self.combo_degisti)
@@ -206,6 +208,15 @@ class Talimci(Gtk.Window):
 		if os.path.isdir("/usr/milis/talimatname"):
 			self.dizin_doldur("/usr/milis/talimatname")
 
+	def d_bilgi(self, widget, x, y, keyboard_mode, tooltip, text):
+		tooltip.set_text(text)
+		return True
+
+	def talimatname_yolu_basildi(self,basilan=""):
+		yazilan = self.dosya_yolu.get_text()
+		self.talimat_yolu_kontrol(yazilan)
+
+
 	def dosya_yolu_basildi(self,basilan=""):
 		yazilan = self.dosya_yolu.get_text()
 		if os.path.exists(yazilan):
@@ -226,12 +237,12 @@ class Talimci(Gtk.Window):
 		combo = self.kategori_combo.get_active_text()
 		yazilan = self.talimat_ara.get_text()
 		if combo != None:
-			liste = self.talimatlar[self.kategori_combo.get_active_text()]
 			yeni_ = []
 			self.talimat_ls = Gtk.ListStore(str)
-			for madde in liste:
-				if yazilan in madde:
-					self.talimat_ls.append([madde])
+			for liste in self.talimatlar.keys():
+				for madde in self.talimatlar[liste]:
+					if yazilan in madde:
+						self.talimat_ls.append([madde])
 			self.talimat_liste.set_model(self.talimat_ls)
 
 	def talimat_yolu_degis_basildi(self,basilan=""):
@@ -242,15 +253,21 @@ class Talimci(Gtk.Window):
 		response = dialog.run()
 		if response == Gtk.ResponseType.OK:
 			yazilan = dialog.get_filename()
-			if yazilan.split("/")[-1] != "talimatname":
-				self.bilgi_diyalogu("Hata","Sizden'talimatname' dizini seçmeniz beklenmektedir",Gtk.MessageType.WARNING)
+			if self.talimat_yolu_kontrol(yazilan):
 				dialog.destroy()
 				self.talimat_yolu_degis_basildi()
 			else:
-				self.dizin_doldur(yazilan)
 				dialog.destroy()
 		elif response == Gtk.ResponseType.CANCEL:
 			dialog.destroy()
+
+	def talimat_yolu_kontrol(self,yol):
+			if yol.split("/")[-1] != "talimatname":
+				self.bilgi_diyalogu("Hata","Sizden'talimatname' dizini seçmeniz beklenmektedir",Gtk.MessageType.WARNING)
+				return True
+			else:
+				self.dizin_doldur(yol)
+				return False
 
 
 	def talimat_liste_tiklandi(self, widget, row, col):
@@ -277,13 +294,13 @@ class Talimci(Gtk.Window):
 			elif dosya == "talimat":
 				kategori = dizin.split("talimatname/")[1].split("/")[0]
 				self.talimatlar[kategori].append(dizin.split("talimatname/")[1])
-			
 
 	def yazi_degisti(self,buffer):
 		if self.dosya_yolu.get_text() != "":
 			self.d_kaydet.set_sensitive(True)
 
 	def combo_degisti(self,degisen):
+		self.talimat_ara.set_text("")
 		self.talimat_ls = Gtk.ListStore(str)
 		for madde in self.talimatlar[self.kategori_combo.get_active_text()]:
 			self.talimat_ls.append([madde])
