@@ -50,6 +50,8 @@ class CustomCompletionProvider(GObject.GObject, GtkSource.CompletionProvider):
 		if not isinstance(end_iter, Gtk.TextIter):
 			_, end_iter = context.get_iter()
 
+#		print(end_iter.get_text())
+
 		if end_iter:
 			mps_list ={
 				"[paket]":["tanim\t\t=","paketci\t\t=","grup\t\t\t=","url\t\t\t\t="],
@@ -352,6 +354,8 @@ class MerkezPencere(Gtk.Window):
 		text = self.tablar.get_tab_label_text(kutu)
 		self.secili_tab = kutu
 		print(text)
+		#if kutu.degistimi:
+		#	self.
 
 	def d_bilgi(self, widget, x, y, keyboard_mode, tooltip, text):
 		tooltip.set_text(text)
